@@ -25,6 +25,7 @@
 #include "notificator.h"
 #include "guiutil.h"
 #include "rpcconsole.h"
+#include "wallet.h"
 
 #ifdef Q_OS_MAC
 #include "macdockiconhandler.h"
@@ -44,6 +45,7 @@
 #include <QPushButton>
 #include <QLocale>
 #include <QMessageBox>
+#include <QMimeData>
 #include <QProgressBar>
 #include <QStackedWidget>
 #include <QDateTime>
@@ -57,6 +59,10 @@
 
 #include <iostream>
 
+extern CWallet* pwalletMain;
+extern int64 nLastCoinStakeSearchInterval;
+extern unsigned int nTargetSpacing;
+double GetPoSKernelPS();
 BitcoinGUI::BitcoinGUI(QWidget *parent):
     QMainWindow(parent),
     clientModel(0),
@@ -129,15 +135,26 @@ BitcoinGUI::BitcoinGUI(QWidget *parent):
     frameBlocksLayout->setContentsMargins(3,0,3,0);
     frameBlocksLayout->setSpacing(3);
     labelEncryptionIcon = new QLabel();
+	labelStakingIcon = new QLabel();
     labelConnectionsIcon = new QLabel();
     labelBlocksIcon = new QLabel();
     frameBlocksLayout->addStretch();
     frameBlocksLayout->addWidget(labelEncryptionIcon);
     frameBlocksLayout->addStretch();
+    frameBlocksLayout->addWidget(labelStakingIcon);
+    frameBlocksLayout->addStretch();
     frameBlocksLayout->addWidget(labelConnectionsIcon);
     frameBlocksLayout->addStretch();
     frameBlocksLayout->addWidget(labelBlocksIcon);
     frameBlocksLayout->addStretch();
+
+    if (GetBoolArg("-staking", true))
+    {
+        QTimer *timerStakingIcon = new QTimer(labelStakingIcon);
+        connect(timerStakingIcon, SIGNAL(timeout()), this, SLOT(updateStakingIcon()));
+        timerStakingIcon->start(30 * 1000);
+        updateStakingIcon();
+    }
 
     // Progress bar and label for blocks download
     progressBarLabel = new QLabel();
@@ -879,4 +896,51 @@ void BitcoinGUI::showNormalIfMinimized(bool fToggleHidden)
 void BitcoinGUI::toggleHidden()
 {
     showNormalIfMinimized(true);
+}
+
+void BitcoinGUI::updateStakingIcon()
+{
+    if (nLastCoinStakeSearchInterval)
+    {
+        uint64 nMinWeight = 0, nMaxWeight = 0, nWeight = 0;
+        pwalletMain->GetStakeWeight(*pwalletMain, nMinWeight, nMaxWeight, nWeight);
+
+        uint64 nNetworkWeight = GetPoSKernelPS();
+        unsigned nEstimateTime = nTargetSpacing * nNetworkWeight / nWeight;
+
+        QString text;
+        if (nEstimateTime < 60)
+        {
+            text = tr("%n second(s)", "", nEstimateTime);
+        }
+        else if (nEstimateTime < 60*60)
+        {
+            text = tr("%n minute(s)", "", nEstimateTime/60);
+        }
+        else if (nEstimateTime < 24*60*60)
+        {
+            text = tr("%n hour(s)", "", nEstimateTime/(60*60));
+        }
+        else
+        {
+            text = tr("%n day(s)", "", nEstimateTime/(60*60*24));
+        }
+
+        labelStakingIcon->setPixmap(QIcon(":/icons/staking_on").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
+        labelStakingIcon->setToolTip(tr("Staking.\n Your weight is %1\n Network weight is %2\nEstimate time to earn reward is %3").arg(nWeight).arg(nNetworkWeight).arg(text));
+    }
+    else
+    {
+        labelStakingIcon->setPixmap(QIcon(":/icons/staking_off").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
+        if (pwalletMain && pwalletMain->IsLocked())
+            labelStakingIcon->setToolTip(tr("Not staking because wallet is locked"));
+        else if (vNodes.empty())
+            labelStakingIcon->setToolTip(tr("Not staking because wallet is offline"));
+        else if (IsInitialBlockDownload())
+            labelStakingIcon->setToolTip(tr("Not staking because wallet is syncing"));
+        else if (!pindexBest || pindexBest->nHeight < MODIFIER_INTERVAL_SWITCH)
+            labelStakingIcon->setToolTip(tr("Not staking because waiting for hardfork"));
+        else
+            labelStakingIcon->setToolTip(tr("Not staking because you don't have mature coins"));
+    }
 }
