@@ -186,6 +186,7 @@ BitcoinGUI::~BitcoinGUI()
         trayIcon->hide();
 #ifdef Q_OS_MAC
     delete appMenuBar;
+	MacDockIconHandler::instance()->setMainWindow(NULL);
 #endif
 }
 
@@ -411,7 +412,7 @@ void BitcoinGUI::createTrayIcon()
     // Note: On Mac, the dock icon is used to provide the tray's functionality.
     MacDockIconHandler *dockIconHandler = MacDockIconHandler::instance();
     trayIconMenu = dockIconHandler->dockMenu();
-	dockIconHandler->setMainWindow((QMainWindow*)this);
+	dockIconHandler->setMainWindow((QMainWindow *)this);
 #endif
 
     // Configuration of the tray icon (or dock icon) icon menu
