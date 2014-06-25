@@ -1886,8 +1886,11 @@ void StartNode(void* parg)
         printf("Error; NewThread(ThreadDumpAddress) failed\n");
 
     // ppcoin: mint proof-of-stake blocks in the background
-    if (!NewThread(ThreadStakeMinter, pwalletMain))
-        printf("Error: NewThread(ThreadStakeMinter) failed\n");
+    if (!GetBoolArg("-staking", true))
+        printf("Staking disabled\n");
+    else
+        if (!NewThread(ThreadStakeMinter, pwalletMain))
+            printf("Error: NewThread(ThreadStakeMinter) failed\n");
 
     // Generate coins in the background
     GenerateBitcoins(GetBoolArg("-gen", false), pwalletMain);
