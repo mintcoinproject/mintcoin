@@ -153,13 +153,16 @@ BitcoinGUI::BitcoinGUI(QWidget *parent):
     labelMintingIcon->setPixmap(QIcon(":/icons/minting").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
     labelMintingIcon->setEnabled(false);
     // Add timer to update minting icon
-    QTimer *timerMintingIcon = new QTimer(labelMintingIcon);
-    timerMintingIcon->start(MODEL_UPDATE_DELAY);
-    connect(timerMintingIcon, SIGNAL(timeout()), this, SLOT(updateMintingIcon()));
-    // Add timer to update minting weights
-    QTimer *timerMintingWeights = new QTimer(labelMintingIcon);
-    timerMintingWeights->start(30 * 1000);
-    connect(timerMintingWeights, SIGNAL(timeout()), this, SLOT(updateMintingWeights()));
+    if (GetBoolArg("-staking", true))
+    {
+        QTimer *timerMintingIcon = new QTimer(labelMintingIcon);
+        timerMintingIcon->start(MODEL_UPDATE_DELAY);
+        connect(timerMintingIcon, SIGNAL(timeout()), this, SLOT(updateMintingIcon()));
+        // Add timer to update minting weights
+        QTimer *timerMintingWeights = new QTimer(labelMintingIcon);
+        timerMintingWeights->start(30 * 1000);
+        connect(timerMintingWeights, SIGNAL(timeout()), this, SLOT(updateMintingWeights()));
+    }
     // Set initial values for user and network weights
     nWeight, nNetworkWeight = 0;
 
